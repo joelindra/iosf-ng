@@ -1,0 +1,301 @@
+# iOSTester OWASP API Security Top 10 (2023) ruleset
+#
+# A rule can be:
+#   type: passive  -> evaluated against every captured transaction
+#                    (no new traffic), via a `check` implemented in engine.py
+#   type: active   -> requires replaying captured requests with mutations;
+#                    the engine picks candidate transactions via `match.*`
+#
+# `check` names map to functions registered in iostester.analyzer.engine.CHECKS
+# `mutator` names map to functions in iostester.analyzer.active.MUTATORS
+#
+# Reviewers can add rules here without touching core code; new check/mutator
+# names must be registered in Python, which keeps arbitrary code out of rules.
+
+rules:
+  # ---------------------------------------------------------------- API8
+  - id: API8-MISSING-HSTS
+    category: API8:2023
+    severity: low
+    confidence: high
+    check: missing_hsts
+    title: "Missing Strict-Transport-Security header"
+    description: >
+      The response is delivered without a Strict-Transport-Security header,
+      allowing protocol downgrade / SSL-stripping attacks against future
+      connections to this host.
+    remediation: >
+      Return `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+      on all HTTPS responses.
+    match:
+      require_https: true
+
+  - id: API8-WEAK-CORS
+    category: API8:2023
+    severity: high
+    confidence: medium
+    check: weak_cors
+    title: "Permissive CORS policy with credentials"
+    description: >
+      Access-Control-Allow-Origin reflects the request Origin (or is `*`)
+      while Access-Control-Allow-Credentials is true. Any web origin can
+      read authenticated responses from a browser context.
+    remediation: >
+      Allowlist trusted origins explicitly; never combine wildcard/reflected
+      origins with `Access-Control-Allow-Credentials: true`.
+    match: {}
+
+  - id: API8-VERBOSE-ERRORS
+    category: API8:2023
+    severity: low
+    confidence: medium
+    check: verbose_errors
+    title: "Verbose error information exposed"
+    description: >
+      Error responses disclose stack traces, SQL fragments, or framework
+      internals that help attackers map the backend.
+    remediation: "Return generic error envelopes; log details server-side."
+    match:
+      status_gte: 500
+
+  - id: API8-NO-CACHE-CONTROL
+    category: API8:2023
+    severity: low
+    confidence: medium
+    check: missing_cache_control
+    title: "Sensitive response without Cache-Control"
+    description: >
+      A response containing tokens or personal data is served without
+      Cache-Control: no-store, so intermediaries or the device may cache it.
+    remediation: "Set `Cache-Control: no-store` on authenticated/private data."
+    match:
+      status: 200
+
+  # ---------------------------------------------------------------- API2
+  - id: API2-TOKEN-IN-URL
+    category: API2:2023
+    severity: medium
+    confidence: high
+    check: token_in_url
+    title: "Credential material transmitted in URL"
+    description: >
+      Tokens/API keys appear in the query string. URLs leak into logs,
+      proxies and history; they are also cached more aggressively.
+    remediation: >
+      Move credentials to the Authorization header; rotate any exposed token.
+    match: {}
+
+  - id: API2-NO-EXPIRY-JWT
+    category: API2:2023
+    severity: medium
+    confidence: medium
+    check: jwt_no_expiry
+    title: "JWT without expiry claim"
+    description: >
+      Bearer tokens captured in traffic carry no `exp` claim; they remain
+      valid indefinitely unless revoked server-side.
+    remediation: "Issue short-lived access tokens with `exp`; rotate refresh."
+    match: {}
+
+  - id: API2-PLAINTEXT-BASIC
+    category: API2:2023
+    severity: high
+    confidence: medium
+    check: basic_auth_no_tls
+    title: "Basic authentication over an unencrypted scheme"
+    description: >
+      HTTP Basic credentials observed on a non-TLS request; credentials are
+      trivially recoverable.
+    remediation: "Require TLS; prefer token-based auth with short lifetimes."
+    match: {}
+
+  - id: API2-LOGOUT-TOKEN-STILL-VALID
+    category: API2:2023
+    severity: high
+    confidence: medium
+    check: none
+    type: active
+    mutator: logout_replay
+    title: "Token still accepted after logout"
+    description: >
+      A request that followed a logout call was replayed with the old
+      Authorization header and was still accepted (HTTP 2xx).
+    remediation: >
+      Invalidate server-side sessions/tokens on logout; shorten TTL and add
+      revocation lists.
+    match:
+      require_auth_header: true
+
+  - id: API2-TOKEN-NO-EXPIRY-ACTIVE
+    category: API2:2023
+    severity: medium
+    confidence: low
+    check: none
+    type: active
+    mutator: replay_with_expired_claims
+    title: "Server accepts tampered/stale token claims"
+    description: >
+      A replay with an artificially expired JWT payload (unsigned test only
+      where signature is not validated) was accepted; indicates missing
+      expiry validation.
+    remediation: "Validate exp/nbf/iss/aud on every request."
+    match:
+      require_auth_header: true
+
+  # ---------------------------------------------------------------- API1
+  - id: API1-BOLA-SEQUENTIAL-ID
+    category: API1:2023
+    severity: high
+    confidence: medium
+    type: active
+    mutator: iterate_object_id
+    check: bola_id_replay
+    title: "Potential Broken Object Level Authorization (BOLA)"
+    description: >
+      Requests carrying object identifiers returned data for identifiers the
+      current session was not observed to create. Sequential/guessable IDs
+      make enumeration practical.
+    remediation: >
+      Enforce per-object authorization checks on every request; avoid
+      sequential identifiers (use opaque UUIDs).
+    match:
+      id_location: [path, query]
+      success_status: [200, 201, 202]
+
+  # ---------------------------------------------------------------- API3
+  - id: API3-MASS-ASSIGNMENT
+    category: API3:2023
+    severity: high
+    confidence: low
+    type: active
+    mutator: mass_assign
+    check: mass_assignment
+    title: "Excessive data exposure / mass assignment"
+    description: >
+      Adding privileged properties to a JSON body (role, isAdmin, balance...)
+      did not result in an error and/or the property was echoed back or took
+      effect.
+    remediation: >
+      Use explicit allow-lists of settable properties; drop unknown fields.
+    match:
+      methods: [POST, PUT, PATCH]
+      body_is_json: true
+
+  - id: API3-FIELD-INJECTION-RESPONSE
+    category: API3:2023
+    severity: low
+    confidence: low
+    type: active
+    mutator: probe_field_permissions
+    check: object_property_leak
+    title: "Sensitive object properties returned to client"
+    description: >
+      Responses include fields the app never displays (internal flags,
+      salary, password hashes, tokens). Suggests over-serialization.
+    remediation: "Serialize responses explicitly; filter sensitive fields."
+    match:
+      methods: [GET, POST]
+
+  # ---------------------------------------------------------------- API4
+  - id: API4-NO-RATE-LIMIT
+    category: API4:2023
+    severity: medium
+    confidence: medium
+    type: active
+    mutator: burst
+    check: rate_limit_absent
+    title: "No rate limiting observed"
+    description: >
+      A burst of identical requests was accepted without any 429/503 or
+      Retry-After indication, enabling brute force, scraping, and resource
+      exhaustion.
+    remediation: >
+      Apply per-IP/per-user quotas with 429 responses and Retry-After; add
+      server-side cost limits (pagination caps, timeouts).
+    match:
+      methods: [POST, GET]
+      max_burst: 25
+
+  # ---------------------------------------------------------------- API5
+  - id: API5-BFLA-ADMIN-PATH
+    category: API5:2023
+    severity: high
+    confidence: medium
+    type: active
+    mutator: admin_path_swap
+    check: admin_access
+    title: "Broken Function Level Authorization (admin surface)"
+    description: >
+      Admin/internal endpoints discovered through captured traffic or naming
+      conventions returned success with a regular user's credentials.
+    remediation: >
+      Deny by default at the function layer; enforce role checks server-side
+      for every administrative route.
+    match:
+      admin_path_markers: [admin, internal, debug, manage, staff, superuser]
+
+  # ---------------------------------------------------------------- API7
+  - id: API7-SSRF-PARAM
+    category: API7:2023
+    severity: high
+    confidence: low
+    type: active
+    mutator: ssrf_url_param
+    check: ssrf_signal
+    title: "Potential SSRF via URL parameter"
+    description: >
+      Parameters that accept URLs or file paths were replayed with internal
+      targets (127.0.0.1, link-local metadata) and the server response
+      indicated the fetch was attempted.
+    remediation: >
+      Allowlist outbound destinations; block RFC1918/link-local ranges; use
+      network egress policies.
+    match:
+      param_hints: [url, uri, link, redirect, callback, next, image, imageUrl, file, path, feed, webhook, proxy, host, domain]
+
+  # ---------------------------------------------------------------- API6
+  - id: API6-SENSITIVE-FLOW
+    category: API6:2023
+    severity: info
+    confidence: medium
+    check: sensitive_flow
+    title: "Sensitive business flow identified (review restrictions)"
+    description: >
+      Transaction flow looks like checkout/payment/transfer; verify that
+      anti-automation controls (CAPTCHA, device binding, velocity checks)
+      protect it.
+    remediation: >
+      Rate-limit and bind sensitive flows to device/session; monitor for
+      automation.
+    match: {}
+
+  # ---------------------------------------------------------------- API9
+  - id: API9-SHADOW-ENDPOINTS
+    category: API9:2023
+    severity: info
+    confidence: low
+    check: shadow_endpoints
+    title: "Inventory drift / shadow endpoints"
+    description: >
+      Non-production hosts (staging, QA, internal) or versionless endpoints
+      were observed from the app.
+    remediation: >
+      Maintain an endpoint inventory; retire staging exposure from release
+      traffic.
+    match: {}
+
+  # ---------------------------------------------------------------- API10
+  - id: API10-THIRD-PARTY-UNVALIDATED
+    category: API10:2023
+    severity: low
+    confidence: low
+    check: unsafe_consumption
+    title: "Third-party responses consumed without obvious validation"
+    description: >
+      Responses from a third-party host reached the app without content-type
+      or schema enforcement signals (e.g. HTML into a JSON parser), a common
+      relay for injection attacks.
+    remediation: >
+      Validate content-type and schema of third-party payloads; enforce TLS
+      and pin critical partners.
+    match: {}

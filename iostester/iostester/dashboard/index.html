@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iOSTester Live Dashboard</title>
+<style>
+  body { margin: 0; background: #0f1115; color: #e8eaed; font-family: system-ui, sans-serif; padding: 24px; }
+  h1 { margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .card { background: #171a21; border: 1px solid #2a2f3a; border-radius: 8px; padding: 16px; }
+  .card .num { font-size: 28px; font-weight: bold; color: #4f8cff; }
+  .card .lbl { font-size: 12px; color: #9aa3af; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; background: #171a21; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #2a2f3a; font-size: 13px; }
+  th { background: #1e222b; color: #9aa3af; }
+  code { font-family: monospace; }
+</style>
+</head>
+<body>
+<h1>iOSTester Live Dashboard</h1>
+<div class="grid">
+  <div class="card"><div class="num" id="tx-cnt">-</div><div class="lbl">Transactions</div></div>
+  <div class="card"><div class="num" id="host-cnt">-</div><div class="lbl">Hosts</div></div>
+  <div class="card"><div class="num" id="err-cnt">-</div><div class="lbl">Errors (4xx/5xx)</div></div>
+  <div class="card"><div class="num" id="f-cnt">-</div><div class="lbl">Findings</div></div>
+</div>
+<h2>Live Transactions</h2>
+<table>
+  <thead><tr><th>Status</th><th>Method</th><th>Host</th><th>Path</th><th>Elapsed</th></tr></thead>
+  <tbody id="tx-body"><tr><td colspan="5">Loading...</td></tr></tbody>
+</table>
+<script>
+async function refresh() {
+  try {
+    const s = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('tx-cnt').textContent = s.transactions || 0;
+    document.getElementById('host-cnt').textContent = s.hosts || 0;
+    document.getElementById('err-cnt').textContent = s.errors_4xx_5xx || 0;
+    const f = await fetch('/api/findings').then(r => r.json());
+    document.getElementById('f-cnt').textContent = f.length || 0;
+    const txs = await fetch('/api/transactions?limit=25').then(r => r.json());
+    const tbody = document.getElementById('tx-body');
+    tbody.innerHTML = txs.map(t => `
+      <tr>
+        <td><strong>${t.status || '-'}</strong></td>
+        <td><code>${t.method || '-'}</code></td>
+        <td>${t.host || '-'}</td>
+        <td><code>${(t.path || '/').slice(0, 50)}</code></td>
+        <td>${t.elapsed_ms ? Math.round(t.elapsed_ms) + 'ms' : '-'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="5">No transactions</td></tr>';
+  } catch(e) {}
+}
+setInterval(refresh, 2500);
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iOSTester Report - {{ meta.name }}</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --ink: #e8eaed;
+    --muted: #9aa3af; --line: #2a2f3a; --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 26px 32px 18px; border-bottom: 1px solid var(--line);
+           background: linear-gradient(180deg, #171a21, #12141a); }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 32px 80px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .n { font-size: 26px; font-weight: 700; }
+  .card .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+  .sev-critical .n { color: #ff5252; } .sev-high .n { color: #ff7043; } .sev-medium .n { color: #ffb300; }
+  .sev-low .n { color: #ffee58; } .sev-info .n { color: #64b5f6; }
+  section { margin-top: 30px; }
+  section > h2 { font-size: 16px; border-left: 3px solid var(--accent); padding-left: 10px; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; background: var(--panel2); }
+  tr:last-child td { border-bottom: none; }
+  code, .mono { font-family: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px;
+          font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #0b0d11; }
+  .filterbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 16px; }
+  .filterbar button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+          border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .filterbar button.active { border-color: var(--accent); color: #fff; }
+  .finding { background: var(--panel); border: 1px solid var(--line); border-left-width: 4px;
+             border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  .finding > summary { cursor: pointer; padding: 13px 16px; display: flex; gap: 12px; align-items: baseline; }
+  .finding > summary::-webkit-details-marker { display: none; }
+  .finding .title { font-weight: 650; }
+  .finding .cat { color: var(--muted); font-size: 12.5px; }
+  .finding .body { padding: 0 18px 16px; border-top: 1px solid var(--line); }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px; margin: 10px 0; }
+  .kv .k { color: var(--muted); }
+  pre { background: #0b0d11; border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+        overflow: auto; max-height: 420px; }
+  .muted { color: var(--muted); }
+  .footer { margin-top: 46px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+  @media print {
+    :root { --bg: #fff; --panel: #fff; --panel2: #f6f7f9; --ink: #111; --muted: #555; --line: #d7dbe0; }
+    body { background: #fff; }
+    .filterbar { display: none; }
+    details { open: true; }
+    .finding .body { display: block !important; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>iOS Network &amp; API Security Assessment</h1>
+  <div class="sub">
+    Session <strong>{{ meta.name }}</strong> &middot; generated {{ generated }} &middot; iOSTester v{{ tool_version }}
+  </div>
+</header>
+<div class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="n">{{ findings|length }}</div><div class="l">Findings</div></div>
+    <div class="card sev-critical"><div class="n">{{ severity.critical }}</div><div class="l">Critical</div></div>
+    <div class="card sev-high"><div class="n">{{ severity.high }}</div><div class="l">High</div></div>
+    <div class="card sev-medium"><div class="n">{{ severity.medium }}</div><div class="l">Medium</div></div>
+    <div class="card sev-low"><div class="n">{{ severity.low }}</div><div class="l">Low</div></div>
+    <div class="card sev-info"><div class="n">{{ severity.info }}</div><div class="l">Info</div></div>
+  </div>
+
+  <section>
+    <h2>Session metadata</h2>
+    <table>
+      <tr><th style="width:220px">Field</th><th>Value</th></tr>
+      <tr><td>Target app</td><td class="mono">{{ meta.target.bundle_id or '-' }}
+        {% if meta.target.app_version %} (v{{ meta.target.app_version }}){% endif %}</td></tr>
+      <tr><td>Device</td><td>{{ meta.device.model or '-' }}
+        {% if meta.device.ios %} &middot; iOS {{ meta.device.ios }}{% endif %}
+        {% if meta.device.udid %} &middot; <span class="mono">{{ meta.device.udid[:16] }}...</span>{% endif %}</td></tr>
+      <tr><td>Authorization</td><td>
+        {% if meta.authorization.authorized_by %}
+          {{ meta.authorization.authorized_by }} (registered {{ meta.authorization.registered }})
+        {% else %}NOT RECORDED - testing must be authorized{% endif %}</td></tr>
+      <tr><td>Session created</td><td>{{ meta.created }}</td></tr>
+    </table>
+  </section>
+
+  {% if traffic_summary %}
+  <section>
+    <h2>Traffic overview</h2>
+    <div class="cards">
+      <div class="card"><div class="n">{{ traffic_summary.transactions }}</div><div class="l">Transactions</div></div>
+      <div class="card"><div class="n">{{ traffic_summary.hosts }}</div><div class="l">Hosts</div></div>
+      <div class="card"><div class="n">{{ traffic_summary.paths }}</div><div class="l">Paths</div></div>
+      <div class="card"><div class="n">{{ traffic_summary.connections }}</div><div class="l">TLS connections</div></div>
+      <div class="card"><div class="n">{{ traffic_summary.errors_4xx_5xx }}</div><div class="l">4xx/5xx</div></div>
+    </div>
+    {% if top_hosts %}
+    <table style="margin-top:12px">
+      <tr><th>Host</th><th>Transactions</th><th>Paths</th></tr>
+      {% for h in top_hosts[:20] %}
+      <tr><td class="mono">{{ h.host }}</td><td>{{ h.transactions }}</td><td>{{ h.paths }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>Findings by OWASP API Security Top 10 (2023)</h2>
+    <div class="filterbar" id="filterbar">
+      <button data-sev="all" class="active">All ({{ findings|length }})</button>
+      {% for s in severity_order %}
+        <button data-sev="{{ s }}">{{ s|capitalize }} ({{ severity[s] }})</button>
+      {% endfor %}
+    </div>
+    {% if not findings %}
+      <p class="muted">No findings. Either the traffic was clean, or the session captured no
+      application traffic - check the traffic overview and re-run the scan.</p>
+    {% endif %}
+    {% for f in findings %}
+    <details class="finding" data-sev="{{ f.severity }}" style="border-left-color: {{ f.severity|sev_color }}">
+      <summary>
+        <span class="pill" style="background: {{ f.severity|sev_color }}">{{ f.severity }}</span>
+        <span class="title">{{ f.title }}</span>
+        <span class="cat">{{ f.category }} &middot; {{ f.category_name }} &middot; {{ f.rule_id }} &middot; confidence {{ f.confidence }}</span>
+      </summary>
+      <div class="body">
+        <div class="kv">
+          <div class="k">Affected endpoint</div>
+          <div class="mono">
+            {% if f.evidence.host %}https://{{ f.evidence.host }}{{ f.evidence.endpoint or f.evidence.path or '' }}{% else %}-{% endif %}
+          </div>
+          {% if f.evidence.replayed_url %}
+          <div class="k">Replayed URL</div><div class="mono">{{ f.evidence.replayed_url }}</div>
+          {% endif %}
+          {% if f.evidence.parameter %}<div class="k">Parameter</div><div class="mono">{{ f.evidence.parameter }}</div>{% endif %}
+          {% if f.evidence.status is defined %}<div class="k">HTTP status</div><div>{{ f.evidence.status }}</div>{% endif %}
+          <div class="k">Transaction(s)</div><div class="mono">{{ f.tx_ids|join(', ') or '-' }}</div>
+        </div>
+        <p>{{ f.description }}</p>
+        {% if f.evidence.response_excerpt %}
+        <div class="k muted">Response excerpt</div>
+        <pre>{{ f.evidence.response_excerpt }}</pre>
+        {% endif %}
+        <details>
+          <summary class="muted">Raw evidence (JSON)</summary>
+          <pre>{{ f.evidence | tojson(indent=2) }}</pre>
+        </details>
+        {% if f.remediation %}
+        <div class="k muted" style="margin-top:10px">Remediation</div>
+        <p>{{ f.remediation }}</p>
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </section>
+
+  {% if endpoints %}
+  <section>
+    <h2>Endpoint inventory (top {{ endpoints|length }})</h2>
+    <table>
+      <tr><th>Host</th><th>Method</th><th>Path</th><th>Hits</th><th>Avg ms</th><th>Status range</th></tr>
+      {% for e in endpoints %}
+      <tr>
+        <td class="mono">{{ e.host }}</td>
+        <td>{{ e.method }}</td>
+        <td class="mono">{{ e.path }}</td>
+        <td>{{ e.count }}</td>
+        <td>{{ '%.0f'|format(e.avg_ms) if e.avg_ms is not none else '-' }}</td>
+        <td>{{ e.min_status }}-{{ e.max_status }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+  {% endif %}
+
+  <div class="footer">
+    <strong>Authorization notice.</strong> This assessment was performed for authorized
+    security testing purposes. Evidence may contain sensitive data; handle and store
+    according to your engagement rules. Generated by iOSTester.
+  </div>
+</div>
+
+<script>
+(function () {
+  var bar = document.getElementById('filterbar');
+  if (!bar) return;
+  bar.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    var sev = btn.getAttribute('data-sev');
+    bar.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b === btn); });
+    document.querySelectorAll('.finding').forEach(function (f) {
+      f.style.display = (sev === 'all' || f.getAttribute('data-sev') === sev) ? '' : 'none';
+    });
+  });
+  document.querySelectorAll('.finding').forEach(function (f) { f.open = false; });
+})();
+</script>
+</body>
+</html>

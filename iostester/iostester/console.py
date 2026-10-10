@@ -98,7 +98,7 @@ class IOSFConsole:
         cmd_table.add_row("exit", "quit", "Exit iosf-ng console")
 
         console.print(cmd_table)
-        console.print(f"[bold dim]Status:[/bold dim] [bold green]Device:[/bold green] {self.device_info_str} | [bold green]Session:[/bold green] {self.active_session} | [bold green]Proxy:[/bold green] {self.proxy_host}:{self.proxy_port}\n")
+        console.print(f"[bold dim]Status:[/bold dim] [bold green]Device:[/bold green] {self.device_info_str} | [bold green]Session:[/bold green] {self.active_session}\n")
 
     def cmd_help(self):
         console.rule("[bold cyan]iosf-ng Command Guide[/bold cyan]")
@@ -320,7 +320,7 @@ class IOSFConsole:
                 f"  • Target: [bold white]{app_name}[/bold white] ([cyan]{bundle_id}[/cyan])\n"
                 f"  • Status: [bold green]Injected & Intercepting TLS Validations[/bold green]\n\n"
                 f"All HTTPS requests from [bold]{app_name}[/bold] are now forwarded cleanly\n"
-                f"to your [bold cyan]Burp Suite[/bold cyan] HTTP history ({self.proxy_host}:{self.proxy_port})!\n\n"
+                f"to your [bold cyan]Burp Suite[/bold cyan] HTTP history!\n\n"
                 f"[yellow]Perform your testing actions inside the app now.[/yellow]\n"
                 f"[dim]Press Ctrl+C to stop bypass and return to console.[/dim]",
                 title="Live Bypass Session",

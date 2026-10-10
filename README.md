@@ -4,16 +4,7 @@
 
 ---
 
-```text
- ___ ___  ___  ___       _  _  ___ 
-|_ _/ _ \/ __|| __|     | \| |/ __|
- | | (_) \__ \| _|  --- | .` | (_ |
-|___\___/|___/|_|       |_|\_|\___|
-
-Created By Anonre
-iOS Mobile Security & API Testing Framework (Next-Gen)
-Inspired by Recon-ng | Non-Jailbreak & Jailbroken iOS Support
-```
+<img width="1030" height="649" alt="image" src="https://github.com/user-attachments/assets/3ddebc69-964a-4579-82ba-166b1b5aa49d" />
 
 **IOSF-NG** is an end-to-end iOS application security testing framework designed for professional mobile penetration testers, security researchers, and red teams. Inspired by the interactive workflow of `recon-ng` and `metasploit`, it unifies **USB device inspection**, **Burp Suite CA installation**, **dynamic Frida 17+ SSL Pinning Bypass (with anti-debugging bypass)**, **in-process TLS plaintext capture**, and automated **OWASP Mobile & API Security Top 10 auditing**.
 
@@ -79,7 +70,7 @@ python main.py
 ```
 You will be greeted with the banner, connected USB device status, and the interactive prompt:
 ```text
-Status: Device: iPhone (iPhone10,6, iOS 16.7.16) | Session: default | Proxy: 10.136.83.113:8080
+Status: Device: iPhone (iPhone10,6, iOS 16.7.16) | Session: default
 
 iosf-ng $ 
 ```
@@ -208,3 +199,7 @@ Compiles all findings, severity levels, CVSS scores, remediation recommendations
 
 > **DISCLAIMER:**  
 > This tool is developed strictly for **authorized security testing, research, and educational purposes**. Penetration testing on applications or devices without explicit, written permission from the asset owner is strictly prohibited and illegal. All sessions are logged with timestamps.
+
+## Author Credit
+
+Joel Indra
